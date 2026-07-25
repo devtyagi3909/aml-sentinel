@@ -190,7 +190,17 @@ def detect_anomalies(
             rule_scores[dormancy_mask] += 0.2
             rule_flags['dormancy_activation'] = int(dormancy_mask.sum())
         
-        # Rule 6: PEP flag amplifier
+        # Rule 6: Round Tripping (Circular flows)
+        if 'circular_flow_count' in df.columns:
+            circular_mask = df['circular_flow_count'] > 0
+            circular_score = pd.Series(0.0, index=df.index)
+            circular_score[circular_mask] = np.clip(
+                df.loc[circular_mask, 'circular_flow_count'] / 2, 0.5, 1.0
+            )
+            rule_scores += circular_score * 0.25
+            rule_flags['round_tripping'] = int(circular_mask.sum())
+            
+        # Rule 7: PEP flag amplifier
         if 'pep_flag' in df.columns:
             pep_mask = df['pep_flag'] == 1
             rule_scores[pep_mask] *= 1.3  # Amplify risk for PEPs
