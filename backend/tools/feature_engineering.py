@@ -107,10 +107,6 @@ def engineer_features(
                     max_count = max(max_count, count)
                 return max_count
             
-            structuring_cluster = near_ctr.groupby('customer_id').apply(
-                max_cluster_count, include_groups=False
-            ).rename('structuring_cluster_max')
-            
             # Average gap between near-CTR transactions
             def avg_gap(group):
                 if len(group) < 2:
@@ -118,10 +114,20 @@ def engineer_features(
                 dates = group['timestamp'].sort_values()
                 gaps = dates.diff().dt.total_seconds() / 3600  # hours
                 return gaps.mean()
-            
-            near_ctr_gap = near_ctr.groupby('customer_id').apply(
-                avg_gap, include_groups=False
-            ).rename('near_ctr_avg_gap_hours')
+
+            if near_ctr.empty:
+                structuring_cluster = pd.Series(name='structuring_cluster_max', dtype=float)
+                near_ctr_gap = pd.Series(name='near_ctr_avg_gap_hours', dtype=float)
+            else:
+                s_clust = near_ctr.groupby('customer_id').apply(max_cluster_count, include_groups=False)
+                structuring_cluster = s_clust if isinstance(s_clust, pd.DataFrame) else s_clust.rename('structuring_cluster_max')
+                if isinstance(structuring_cluster, pd.DataFrame):
+                    structuring_cluster = pd.Series(name='structuring_cluster_max', dtype=float)
+                    
+                n_gap = near_ctr.groupby('customer_id').apply(avg_gap, include_groups=False)
+                near_ctr_gap = n_gap if isinstance(n_gap, pd.DataFrame) else n_gap.rename('near_ctr_avg_gap_hours')
+                if isinstance(near_ctr_gap, pd.DataFrame):
+                    near_ctr_gap = pd.Series(name='near_ctr_avg_gap_hours', dtype=float)
             
             # Total cash transactions
             total_cash = cash_df.groupby('customer_id').size().rename('total_cash_transactions')

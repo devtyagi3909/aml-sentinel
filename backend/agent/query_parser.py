@@ -15,7 +15,7 @@ from models.enums import QueryIntent, AMLPattern
 from models.schemas import ParsedQuery, QueryFilters
 
 
-def _keyword_parse(query: str) -> ParsedQuery:
+def _keyword_parse(query: str, max_date=None) -> ParsedQuery:
     """
     Fallback keyword-based query parser.
     Used when LLM is unavailable or for fast parsing.
@@ -156,7 +156,7 @@ def _keyword_parse(query: str) -> ParsedQuery:
         if match:
             num = int(match.group(1))
             from datetime import datetime, timedelta
-            end = datetime.now()
+            end = max_date if max_date else datetime.now()
             if unit == 'days':
                 start = end - timedelta(days=num)
             elif unit == 'weeks':
@@ -206,16 +206,17 @@ def _keyword_parse(query: str) -> ParsedQuery:
     )
 
 
-async def parse_query_with_llm(query: str, llm=None) -> ParsedQuery:
+async def parse_query_with_llm(query: str, llm=None, max_date=None) -> ParsedQuery:
     """
     Parse query using LLM for better understanding.
     Falls back to keyword parsing if LLM fails.
     """
     if llm is None:
-        return _keyword_parse(query)
+        return _keyword_parse(query, max_date)
     
     try:
-        prompt = f"""You are an AML (Anti-Money Laundering) query parser. Analyze the following user query and extract structured information.
+        anchor_info = f"\nNote: The current 'today' date anchor is {max_date.strftime('%Y-%m-%d')} for resolving relative dates." if max_date else ""
+        prompt = f"""You are an AML (Anti-Money Laundering) query parser. Analyze the following user query and extract structured information.{anchor_info}
 
 User Query: "{query}"
 
@@ -283,9 +284,9 @@ Return ONLY the JSON, no markdown.
     
     except Exception as e:
         print(f"LLM parsing failed ({e}), falling back to keyword parser")
-        return _keyword_parse(query)
+        return _keyword_parse(query, max_date)
 
 
-def parse_query(query: str) -> ParsedQuery:
-    """Synchronous query parser (keyword-based)."""
-    return _keyword_parse(query)
+def parse_query(query: str, max_date=None) -> ParsedQuery:
+    """Wrapper for keyword parser."""
+    return _keyword_parse(query, max_date)

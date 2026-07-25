@@ -152,6 +152,26 @@
                 </div>
             </div>
 
+            <div class="section-block" style="margin-top: 20px;">
+                <div class="section-title">HUMAN-IN-THE-LOOP (HITL)</div>
+                <div class="dashboard-cards" style="grid-template-columns: 1fr 1fr;">
+                    <div class="card card-low">
+                        <div class="card-icon"><i data-lucide="check-square"></i></div>
+                        <div class="card-body">
+                            <div class="card-label">Confirmed</div>
+                            <div class="card-value" id="hitl-confirmed" style="color: var(--green);">0</div>
+                        </div>
+                    </div>
+                    <div class="card card-critical">
+                        <div class="card-icon"><i data-lucide="x-square"></i></div>
+                        <div class="card-body">
+                            <div class="card-label">False Positives</div>
+                            <div class="card-value" id="hitl-fp" style="color: var(--red);">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="section-block">
                 <div class="section-title">TOP SUSPICIOUS ENTITIES</div>
                 <div class="entity-list" id="entity-list">
