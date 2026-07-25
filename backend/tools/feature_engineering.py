@@ -321,7 +321,7 @@ def engineer_features(
             feature_names_used.append('risk_category_encoded')
         
         if 'pep_flag' in core_features.columns:
-            core_features['pep_flag'] = core_features['pep_flag'].astype(int)
+            core_features['pep_flag'] = core_features['pep_flag'].fillna(0).astype(int)
         
         if 'kyc_status' in core_features.columns:
             kyc_map = {'verified': 0, 'pending': 1, 'expired': 2}

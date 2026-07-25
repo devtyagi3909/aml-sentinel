@@ -38,35 +38,12 @@ class DataLoader:
     def load(self, transactions_path: str, customers_path: Optional[str] = None):
         """Load data from CSV files."""
         if os.path.exists(transactions_path):
-            # Load max 50,000 rows to prevent OOM on massive Kaggle datasets
-            df = pd.read_csv(transactions_path, nrows=50000)
-            
-            # Detect Kaggle IBM AML Dataset schema
-            if 'Account' in df.columns and 'Account.1' in df.columns:
-                logger.info("Detected IBM AML Dataset schema. Mapping columns to internal schema...")
-                df = df.rename(columns={
-                    'Account': 'customer_id',
-                    'Account.1': 'counterparty_id',
-                    'Timestamp': 'timestamp',
-                    'Amount Paid': 'amount',
-                    'Payment Format': 'transaction_type',
-                    'Is Laundering': 'ground_truth_flag'
-                })
-                if 'Payment Currency' in df.columns:
-                    df['currency'] = df['Payment Currency']
-                
-                # IBM datasets often use numeric hashes for accounts
-                df['customer_id'] = df['customer_id'].astype(str)
-                df['counterparty_id'] = df['counterparty_id'].astype(str)
-            
-            self.transactions = df
-            
-            # Parse timestamps
+            self.transactions = pd.read_csv(transactions_path)
             if 'timestamp' in self.transactions.columns:
                 self.transactions['timestamp'] = pd.to_datetime(
                     self.transactions['timestamp'], errors='coerce'
                 )
-            logger.info(f"Loaded transactions: {len(self.transactions):,} rows (capped at 50K for memory safety)")
+            logger.info(f"Loaded transactions: {len(self.transactions):,} rows")
         else:
             raise FileNotFoundError(f"Transaction file not found: {transactions_path}")
         

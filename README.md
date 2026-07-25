@@ -58,10 +58,10 @@ Unlike static ETL pipelines, the orchestrator:
 
 ## Dataset Engineering
 
-The dataset is synthetically generated using deterministic seeding to inject statistically verifiable laundering typologies.
+The system analyzes financial transactions using the **Kaggle IBM Transactions for Anti Money Laundering (AML)** dataset.
+- For the live hackathon presentation and memory safety, we dynamically sample the first **50,000 transactions** via the `DataLoader`.
+- The dataset features complex topologies including velocity spikes, geographic risk, and structured layering.
 - Ground truth labels are preserved strictly for classification metric evaluation (Precision, Recall, F1).
-- Total corpus size: ~50,000 transactions across 5,000 distinct entities.
-- Data generation schema is reproducible via `data/generate_synthetic_data.py`.
 
 ## Technology Stack
 
