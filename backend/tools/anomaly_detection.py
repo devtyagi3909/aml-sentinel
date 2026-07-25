@@ -1,11 +1,9 @@
 """
-Anomaly Detection Tool — Identifies suspicious transactions and customers.
+anomaly_detection.py
 
-Uses a hybrid approach combining:
-1. Isolation Forest (ML-based unsupervised anomaly detection)
-2. Statistical Z-Score analysis
-3. Rule-based AML pattern matching
-4. Ensemble scoring combining all methods
+Evaluates the feature matrix against unsupervised machine learning algorithms (Isolation Forest) 
+and statistical divergence metrics (Z-Score distributions), combined with hard-coded 
+heuristic rules, to synthesize an ensemble risk classification score for entity risk assessment.
 """
 
 import pandas as pd

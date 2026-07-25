@@ -1,8 +1,9 @@
 """
-Feature Engineering Tool — Creates AML-specific features from transaction data.
+feature_engineering.py
 
-Generates features for anomaly detection including transaction velocity,
-structuring indicators, geographic risk, and behavioral deviation metrics.
+Constructs higher-order, derived representations of raw financial transactions suitable for 
+machine learning anomaly detection and heuristic rule evaluation. Extrapolates temporal 
+velocity, spatial geo-risk, structuring indicators, and graph-theoretical centrality metrics.
 """
 
 import pandas as pd
