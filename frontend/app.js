@@ -238,6 +238,52 @@ function createResultSection(title, contentClass) {
 }
 
 // ── Flagged Entities Table ──
+function submitFeedback(entityId, decision, btnElement, riskLevel) {
+    btnElement.innerHTML = '<i data-lucide="loader" class="spin"></i>';
+    lucide.createIcons({root: btnElement.parentElement});
+    
+    fetch('/api/feedback', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ entity_id: entityId, decision: decision })
+    })
+    .then(r => r.json())
+    .then(data => {
+        const td = btnElement.parentElement;
+        if (decision === 'Confirm') {
+            td.innerHTML = '<span style="color:var(--green)"><i data-lucide="check-circle"></i> Confirmed</span>';
+        } else {
+            td.innerHTML = '<span style="color:var(--red)"><i data-lucide="x-circle"></i> FP</span>';
+            // Decrement risk counter real-time
+            if (riskLevel) {
+                const riskEl = document.getElementById('risk-' + riskLevel);
+                if (riskEl) {
+                    let current = parseInt(riskEl.textContent) || 0;
+                    if (current > 0) {
+                        animateNumber('risk-' + riskLevel, current - 1);
+                    }
+                }
+                // Strikeout from top entities list
+                const items = document.querySelectorAll('.entity-item');
+                items.forEach(item => {
+                    if (item.innerHTML.includes(entityId)) {
+                        item.style.opacity = '0.4';
+                        item.style.textDecoration = 'line-through';
+                    }
+                });
+            }
+        }
+        lucide.createIcons({root: td});
+        loadHitlStats();
+    })
+    .catch(err => {
+        console.error(err);
+        btnElement.innerHTML = 'Error';
+    });
+}
+
 function renderFlaggedTable(entities) {
     const section = document.createElement('div');
     section.className = 'result-section';
@@ -253,6 +299,7 @@ function renderFlaggedTable(entities) {
                         <th>Action</th>
                         <th>Patterns</th>
                         <th>Explanation</th>
+                        <th>Feedback</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -281,6 +328,10 @@ function renderFlaggedTable(entities) {
             <td><span class="risk-badge ${riskClass}" style="background:transparent;border:1px solid currentColor">${actionLabel}</span></td>
             <td style="font-size:11px;text-transform:uppercase">${patterns.replace(/_/g, ' ')}</td>
             <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${explanation}...</td>
+            <td style="white-space:nowrap;">
+                <button onclick="submitFeedback('${e.entity_id}', 'Confirm', this, '${riskClass}')" style="background:transparent;border:1px solid var(--green);color:var(--green);padding:2px 6px;border-radius:4px;cursor:pointer;font-size:10px;margin-right:4px;">Confirm</button>
+                <button onclick="submitFeedback('${e.entity_id}', 'False Positive', this, '${riskClass}')" style="background:transparent;border:1px solid var(--red);color:var(--red);padding:2px 6px;border-radius:4px;cursor:pointer;font-size:10px;">FP</button>
+            </td>
         `;
         
         tbody.appendChild(tr);
@@ -296,43 +347,28 @@ function clearTrace() {
 }
 
 function renderTrace(trace) {
-    traceList.innerHTML = '';
-    
-    const toolIcons = {
-        'eda_tool': 'bar-chart',
-        'feature_engineering': 'git-branch',
-        'anomaly_detection': 'radar',
-        'risk_classification': 'shield',
-        'explanation_engine': 'message-square',
-    };
-    
-    const toolLabels = {
-        'eda_tool': 'EDA',
-        'feature_engineering': 'Feature Eng.',
-        'anomaly_detection': 'Anomaly Det.',
-        'risk_classification': 'Risk Class.',
-        'explanation_engine': 'Explanation',
-    };
+    traceList.innerHTML = '<div style="background:#000; padding:10px; border-radius:5px; font-family:monospace; font-size:12px; color:#00ff00;"></div>';
+    const terminal = traceList.querySelector('div');
     
     trace.forEach((step, i) => {
         setTimeout(() => {
             const div = document.createElement('div');
-            div.className = `trace-step ${step.status}`;
+            div.style.marginBottom = '6px';
+            div.style.opacity = '0';
+            div.style.animation = 'fadeIn 0.3s forwards';
             
-            const statusIcon = step.status === 'completed' ? 'check' : 
-                              step.status === 'skipped' ? 'fast-forward' : 
-                              step.status === 'error' ? 'x' : 'loader';
+            const statusIcon = step.ran ? '✓' : '⊘';
+            const color = step.ran ? '#00ff00' : '#888';
+            const reason = step.reason ? ` - ${step.reason}` : '';
             
             div.innerHTML = `
-                <span class="trace-icon"><i data-lucide="${toolIcons[step.tool_name] || 'settings'}"></i></span>
-                <span class="trace-name">${toolLabels[step.tool_name] || step.tool_name}</span>
-                <span class="trace-time">${step.duration_ms ? step.duration_ms.toFixed(0) + 'ms' : '—'}</span>
-                <span class="trace-status"><i data-lucide="${statusIcon}"></i></span>
+                <span style="color:${color}">${statusIcon} [${step.tool_name}]</span>
+                <span style="color:#aaa">${reason}</span>
             `;
             
-            traceList.appendChild(div);
-            lucide.createIcons({root: div});
-        }, i * 200);
+            terminal.appendChild(div);
+            traceList.scrollTop = traceList.scrollHeight;
+        }, i * 350); // 350ms per step animation
     });
 }
 
@@ -403,3 +439,17 @@ function animateNumber(elementId, target) {
     
     requestAnimationFrame(update);
 }
+
+// ── Human-In-The-Loop Stats ──
+function loadHitlStats() {
+    fetch('/api/feedback/stats')
+    .then(r => r.json())
+    .then(data => {
+        animateNumber('hitl-confirmed', data.confirmed || 0);
+        animateNumber('hitl-fp', data.false_positives || 0);
+    })
+    .catch(console.error);
+}
+
+// Load stats on startup
+loadHitlStats();
