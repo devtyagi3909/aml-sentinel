@@ -32,12 +32,17 @@ agent: AMLSentinelAgent = None
 data_loader: DataLoader = None
 
 
+import logging
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("aml_sentinel")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize agent and load data on startup."""
     global agent, data_loader
     
-    print("🛡️  AML Sentinel — Starting up...")
+    logger.info("AML Sentinel initializing...")
     
     # Initialize data loader
     data_loader = DataLoader()
@@ -47,12 +52,12 @@ async def lifespan(app: FastAPI):
     cust_path = DATA_DIR / "sample_customers.csv"
     
     if not txn_path.exists():
-        print("📊 Generating synthetic dataset...")
+        logger.info("Generating synthetic dataset...")
         gen_script = DATA_DIR / "generate_synthetic_data.py"
         if gen_script.exists():
             os.system(f"{sys.executable} {gen_script} --output-dir {DATA_DIR}")
         else:
-            print("⚠️  No data found and generator script missing. Please run generate_synthetic_data.py first.")
+            logger.warning("No data found and generator script missing. Please run generate_synthetic_data.py first.")
     
     # Load data
     try:
@@ -60,11 +65,11 @@ async def lifespan(app: FastAPI):
             transactions_path=str(txn_path),
             customers_path=str(cust_path) if cust_path.exists() else None
         )
-        print(f"✅ Loaded {len(data_loader.transactions):,} transactions, "
+        logger.info(f"Loaded {len(data_loader.transactions):,} transactions, "
               f"{len(data_loader.customers):,} customers")
     except Exception as e:
-        print(f"⚠️  Data loading error: {e}")
-        print("   Generate data first: python data/generate_synthetic_data.py")
+        logger.error(f"Data loading error: {e}")
+        logger.error("Generate data first: python data/generate_synthetic_data.py")
     
     # Initialize LLM (optional)
     llm = None
@@ -76,25 +81,24 @@ async def lifespan(app: FastAPI):
                 google_api_key=GOOGLE_API_KEY,
                 temperature=0,
             )
-            print(f"🤖 LLM initialized: {LLM_MODEL}")
+            logger.info(f"LLM initialized: {LLM_MODEL}")
         except ImportError:
-            print("⚠️  langchain-google-genai not installed. Using keyword-based query parsing.")
+            logger.warning("langchain-google-genai not installed. Using keyword-based query parsing.")
         except Exception as e:
-            print(f"⚠️  LLM initialization failed: {e}. Using keyword-based query parsing.")
+            logger.warning(f"LLM initialization failed: {e}. Using keyword-based query parsing.")
     else:
-        print("ℹ️  No LLM API key configured. Using keyword-based query parsing (works great!).")
+        logger.info("No LLM API key configured. Using keyword-based query parsing.")
     
     # Initialize agent
     agent = AMLSentinelAgent(llm=llm)
     if data_loader.transactions is not None:
         agent.load_data(data_loader.transactions, data_loader.customers)
     
-    print("🚀 AML Sentinel is ready!")
-    print(f"🌐 Dashboard: http://localhost:{PORT}")
+    logger.info("AML Sentinel startup sequence complete.")
     
     yield
     
-    print("👋 AML Sentinel shutting down...")
+    logger.info("AML Sentinel shutting down...")
 
 
 # ── FastAPI App ──
