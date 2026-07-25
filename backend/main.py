@@ -7,9 +7,12 @@ Provides REST endpoints for query processing and WebSocket for streaming.
 
 import os
 import sys
+import json
+import logging
 import time
 import asyncio
 from pathlib import Path
+from datetime import datetime
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -40,16 +43,20 @@ logger = logging.getLogger("aml_sentinel")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize agent and load data on startup."""
-    global agent, data_loader
-    
     logger.info("AML Sentinel initializing...")
     
+    # Load default data
+    data_dir = Path(__file__).resolve().parent.parent / "data"
+    transactions_path = str(data_dir / "demo_transactions.csv")
+    customers_path = str(data_dir / "sample_customers.csv")
+    
     # Initialize data loader
+    global agent, data_loader
     data_loader = DataLoader()
     
     # Check if data exists, generate if not
-    txn_path = DATA_DIR / "sample_transactions.csv"
-    cust_path = DATA_DIR / "sample_customers.csv"
+    txn_path = Path(transactions_path)
+    cust_path = Path(customers_path)
     
     if not txn_path.exists():
         logger.info("Generating synthetic dataset...")
@@ -218,6 +225,44 @@ async def websocket_query(websocket: WebSocket):
     
     except WebSocketDisconnect:
         pass
+
+
+class FeedbackRequest(BaseModel):
+    entity_id: str
+    decision: str
+
+@app.post("/api/feedback")
+async def submit_feedback(request: FeedbackRequest):
+    """Save human-in-the-loop feedback to CSV without reloading."""
+    feedback_file = Path(__file__).resolve().parent.parent / "data" / "feedback.csv"
+    
+    # Create file with headers if it doesn't exist
+    if not feedback_file.exists():
+        feedback_file.parent.mkdir(exist_ok=True, parents=True)
+        with open(feedback_file, "w") as f:
+            f.write("timestamp,entity_id,decision\n")
+            
+    # Append feedback
+    with open(feedback_file, "a") as f:
+        f.write(f"{datetime.now().isoformat()},{request.entity_id},{request.decision}\n")
+        
+    return {"status": "success", "message": "Feedback recorded"}
+
+@app.get("/api/feedback/stats")
+async def get_feedback_stats():
+    """Get the current count of Confirm vs False Positive decisions."""
+    feedback_file = Path(__file__).resolve().parent.parent / "data" / "feedback.csv"
+    stats = {"confirmed": 0, "false_positives": 0}
+    
+    if feedback_file.exists():
+        try:
+            df = pd.read_csv(feedback_file)
+            stats["confirmed"] = int((df["decision"] == "Confirm").sum())
+            stats["false_positives"] = int((df["decision"] == "False Positive").sum())
+        except Exception as e:
+            logger.error(f"Error reading feedback stats: {e}")
+            
+    return stats
 
 
 # ── Serve Frontend ──

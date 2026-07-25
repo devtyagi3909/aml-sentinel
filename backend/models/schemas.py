@@ -57,10 +57,10 @@ class FlaggedEntity(BaseModel):
 class ToolExecutionStep(BaseModel):
     """Record of a single tool execution."""
     tool_name: str
-    status: str = "pending"  # pending, running, completed, skipped
-    duration_ms: Optional[float] = None
+    ran: bool = True
+    reason: Optional[str] = None
+    duration_ms: float = 0.0
     summary: Optional[str] = None
-    skipped_reason: Optional[str] = None
 
 
 class AgentResponse(BaseModel):

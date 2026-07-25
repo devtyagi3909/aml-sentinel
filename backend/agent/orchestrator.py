@@ -86,10 +86,12 @@ class AMLSentinelAgent:
             )
         
         # ── Step 1: Parse Query ──
+        max_date = self._transactions['timestamp'].max() if 'timestamp' in self._transactions.columns else None
+        
         if self.llm:
-            parsed = await parse_query_with_llm(query, self.llm)
+            parsed = await parse_query_with_llm(query, self.llm, max_date=max_date)
         else:
-            parsed = parse_query(query)
+            parsed = parse_query(query, max_date=max_date)
         
         # ── Step 2: Build Execution Plan ──
         plan = build_execution_plan(parsed)
@@ -108,9 +110,38 @@ class AMLSentinelAgent:
         explanation_results = None
         statistics = {}
         
-        for tool_name in plan:
-            step = ToolExecutionStep(tool_name=tool_name, status="running")
+        all_tools = [
+            ToolName.EDA.value,
+            ToolName.FEATURE_ENGINEERING.value,
+            ToolName.ANOMALY_DETECTION.value,
+            ToolName.RISK_CLASSIFICATION.value,
+            ToolName.EXPLANATION.value
+        ]
+        
+        for tool_name in all_tools:
             step_start = time.time()
+            
+            # If tool is not in plan, skip it explicitly for trace
+            if tool_name not in plan:
+                reason = f"Tool skipped explicitly based on query intent: {parsed.intent.name}"
+                if tool_name == ToolName.EDA.value and parsed.intent == QueryIntent.ENTITY_LOOKUP:
+                    reason = "Skipped general EDA for targeted entity lookup"
+                elif tool_name in [ToolName.ANOMALY_DETECTION.value, ToolName.RISK_CLASSIFICATION.value, ToolName.EXPLANATION.value] and parsed.intent == QueryIntent.AGGREGATION:
+                    reason = "Skipped ML/Explain modules for direct data aggregation request"
+                elif tool_name in [ToolName.ANOMALY_DETECTION.value, ToolName.RISK_CLASSIFICATION.value] and parsed.intent == QueryIntent.EDA_REQUEST:
+                    reason = "Skipped ML detection for purely exploratory data analysis request"
+                
+                execution_trace.append(ToolExecutionStep(
+                    tool_name=tool_name,
+                    ran=False,
+                    reason=reason,
+                    duration_ms=0,
+                    summary="Skipped"
+                ))
+                continue
+                
+            # If tool is in plan, execute it
+            step = ToolExecutionStep(tool_name=tool_name, ran=True, reason="Selected by planner for execution")
             
             try:
                 if tool_name == ToolName.EDA.value:
@@ -127,12 +158,18 @@ class AMLSentinelAgent:
                         f"Generated {len(result.get('feature_names', []))} features "
                         f"for {len(features_df) if features_df is not None else 0} customers"
                     )
+                    
+                    # Direct pandas aggregation if requested
+                    if parsed.intent == QueryIntent.AGGREGATION:
+                        if features_df is not None and not features_df.empty:
+                            aggs = features_df.describe().to_dict()
+                            statistics['aggregations'] = aggs
+                            step.summary += " | Completed direct pandas aggregations."
                 
                 elif tool_name == ToolName.ANOMALY_DETECTION.value:
                     if features_df is None or len(features_df) == 0:
-                        step.status = "skipped"
-                        step.skipped_reason = "No features available"
-                        step.duration_ms = 0
+                        step.ran = False
+                        step.reason = "Skipped due to no features available"
                         execution_trace.append(step)
                         continue
                     
@@ -146,9 +183,8 @@ class AMLSentinelAgent:
                 
                 elif tool_name == ToolName.RISK_CLASSIFICATION.value:
                     if anomaly_results is None or 'scores_df' not in anomaly_results:
-                        step.status = "skipped"
-                        step.skipped_reason = "No anomaly scores available"
-                        step.duration_ms = 0
+                        step.ran = False
+                        step.reason = "Skipped due to no anomaly scores available"
                         execution_trace.append(step)
                         continue
                     
@@ -165,9 +201,8 @@ class AMLSentinelAgent:
                 
                 elif tool_name == ToolName.EXPLANATION.value:
                     if risk_results is None or features_df is None:
-                        step.status = "skipped"
-                        step.skipped_reason = "No classified entities to explain"
-                        step.duration_ms = 0
+                        step.ran = False
+                        step.reason = "Skipped due to no classified entities to explain"
                         execution_trace.append(step)
                         continue
                     
@@ -178,12 +213,11 @@ class AMLSentinelAgent:
                     explanation_results = result
                     step.summary = f"Generated explanations for {len(result.get('explanations', []))} entities"
                 
-                step.status = "completed"
                 step.duration_ms = (time.time() - step_start) * 1000
                 
             except Exception as e:
-                step.status = "error"
-                step.summary = f"Error: {str(e)}"
+                step.ran = False
+                step.reason = f"Error: {str(e)}"
                 step.duration_ms = (time.time() - step_start) * 1000
                 print(f"Tool {tool_name} error: {e}")
                 import traceback
