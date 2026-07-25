@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AML Sentinel — Enterprise AI</title>
+    <meta name="description" content="Autonomous AML agent for detecting money laundering patterns with explainable risk assessments">
+    
+    <!-- Ultra-premium fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Charting & Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="top-nav">
+        <div class="logo">
+            <i data-lucide="shield-alert" class="shield-icon"></i>
+            <h1>AML SENTINEL</h1>
+            <span class="badge">V2.0 Core</span>
+        </div>
+        <div class="nav-right">
+            <div class="dataset-info">
+                <span class="label">DATASET</span>
+                <span class="mono" id="dataset-meta">Loading...</span>
+            </div>
+            <div class="system-status">
+                <div class="status-indicator" id="status-dot"></div>
+                <span id="health-status" class="mono">CONNECTING...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard">
+        <!-- Left Panel: Chat Interface -->
+        <section class="panel chat-panel" id="chat-panel">
+            <div class="panel-header">
+                <h2><i data-lucide="terminal"></i> Query Engine</h2>
+            </div>
+            
+            <div class="chat-history" id="chat-history">
+                <div class="message system-msg">
+                    <div class="msg-icon"><i data-lucide="cpu"></i></div>
+                    <div class="msg-content">
+                        System initialized. I am AML Sentinel, an autonomous compliance agent.
+                        Provide a query to trigger dynamic graph-based network analysis and ensemble anomaly detection.
+                    </div>
+                </div>
+            </div>
+
+            <div class="example-chips" id="example-chips">
+                <div class="chips-label">RECOMMENDED QUERIES</div>
+                <button class="chip" data-query="Find round-trip laundering">
+                    <i data-lucide="refresh-cw" class="chip-icon"></i> Circular Flows
+                </button>
+                <button class="chip" data-query="Analyze this dataset for suspicious activity">
+                    <i data-lucide="scan" class="chip-icon"></i> Deep Scan
+                </button>
+                <button class="chip" data-query="Find structuring patterns in the last 30 days">
+                    <i data-lucide="bar-chart-2" class="chip-icon"></i> Structuring
+                </button>
+                <button class="chip" data-query="Is customer C-0042 suspicious?">
+                    <i data-lucide="search" class="chip-icon"></i> Entity Lookup
+                </button>
+                <button class="chip" data-query="Show high-risk wire transfers">
+                    <i data-lucide="alert-triangle" class="chip-icon"></i> Wire Risk
+                </button>
+            </div>
+
+            <div class="chat-input-container">
+                <form id="chat-form">
+                    <input type="text" id="query-input" placeholder="Enter natural language query..." autocomplete="off">
+                    <button type="submit" class="send-btn" id="send-btn">
+                        <i data-lucide="arrow-right"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Center Panel: Results Area -->
+        <section class="panel center-panel" id="center-panel">
+            <div class="panel-header">
+                <h2><i data-lucide="layout-dashboard"></i> Analysis Results</h2>
+                <div class="execution-summary" id="execution-summary" style="display: none;">
+                    <span class="summary-item">
+                        <span class="label">ANALYZED</span>
+                        <span class="mono" id="total-analyzed">0</span>
+                    </span>
+                    <span class="summary-item">
+                        <span class="label">FLAGGED</span>
+                        <span class="mono flagged" id="total-flagged-center">0</span>
+                    </span>
+                    <span class="summary-item">
+                        <span class="label">TIME</span>
+                        <span class="mono" id="processing-time">0ms</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="results-content" id="results-content">
+                <div class="empty-state">
+                    <div class="pulse-ring"></div>
+                    <i data-lucide="activity" class="empty-icon"></i>
+                    <p class="empty-title">AWAITING INPUT</p>
+                    <p class="empty-subtitle">System ready for transaction analysis</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel: Dashboard Summary & Trace -->
+        <section class="panel right-panel" id="right-panel">
+            <div class="panel-header">
+                <h2><i data-lucide="activity"></i> Telemetry</h2>
+            </div>
+
+            <div class="dashboard-cards">
+                <div class="card card-critical">
+                    <div class="card-icon"><i data-lucide="alert-octagon"></i></div>
+                    <div class="card-body">
+                        <div class="card-label">Critical Risk</div>
+                        <div class="card-value" id="risk-critical">0</div>
+                    </div>
+                </div>
+                <div class="card card-high">
+                    <div class="card-icon"><i data-lucide="alert-triangle"></i></div>
+                    <div class="card-body">
+                        <div class="card-label">High Risk</div>
+                        <div class="card-value" id="risk-high">0</div>
+                    </div>
+                </div>
+                <div class="card card-medium">
+                    <div class="card-icon"><i data-lucide="info"></i></div>
+                    <div class="card-body">
+                        <div class="card-label">Medium Risk</div>
+                        <div class="card-value" id="risk-medium">0</div>
+                    </div>
+                </div>
+                <div class="card card-low">
+                    <div class="card-icon"><i data-lucide="check-circle"></i></div>
+                    <div class="card-body">
+                        <div class="card-label">Low Risk</div>
+                        <div class="card-value" id="risk-low">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-block">
+                <div class="section-title">TOP SUSPICIOUS ENTITIES</div>
+                <div class="entity-list" id="entity-list">
+                    <div class="entity-empty">Run a query to populate</div>
+                </div>
+            </div>
+
+            <div class="section-block">
+                <div class="section-title">AGENT EXECUTION TRACE</div>
+                <div class="trace-list" id="trace-list">
+                    <div class="trace-empty">No active execution</div>
+                </div>
+            </div>
+
+            <div class="section-block">
+                <div class="section-title">INTENT DETECTED</div>
+                <div class="intent-display" id="intent-display">—</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
